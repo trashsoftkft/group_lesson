@@ -3,13 +3,15 @@ import random
 import requests
 from bs4 import BeautifulSoup
 from selenium import webdriver
+from gym_handler import Gym
+from data_save import save_data
 import csv
 
 #links
 gym_list_path = "https://allyoucanmove.hu/elfogadohelyek"
 
 #strings
-group_string = "Csoportos óra "
+group_string = "Csoportos óra " #Kicsoportos óra not handled, because there is only one in the list
 
 #selector
 lesson_dropdown_css_sel = "div.col-sm-6:nth-child(3) > div:nth-child(1) > div:nth-child(1) > div:nth-child(2) > div:nth-child(1)"
@@ -29,12 +31,13 @@ def move_second_line():
     webdriver.ActionChains(driver).move_to_element(second_line).move_to_element(lesson_dropdown).click(lesson_dropdown).perform()
     time.sleep(2)
 
-#get position od grouplesson in lesoon type dropdown
-def get_grouplesson_list_position():
+#get position of grouplesson in lesoon type dropdown
+def get_activity_list_position():
     lesson_list = driver.find_elements_by_css_selector(lesson_list_dropdown)
     for lesson in lesson_list:
         if (lesson.get_attribute("innerHTML") == group_string):
-            return lesson_list.index(lesson)
+            # + 1 is needed because css counts from 1 list from 0
+            return lesson_list.index(lesson) + 1
     return -1
 
 #Select grouplesson
@@ -44,15 +47,15 @@ def select_grouplesson(position):
 
 #get list of all gym.
 def get_list_of_gym():
-    list = driver.find_elements_by_css_selector(gym_css)
+    gym_list = driver.find_elements_by_css_selector(gym_css)
     previous_list = []
-    while len(list) > len(previous_list):
-        driver.execute_script("window.scrollTo(0, 20000)")
+    while len(gym_list) > len(previous_list):
+        driver.execute_script("window.scrollTo(0, 500000)")
         time.sleep(3)
-        previous_list = list[:]
-        list = driver.find_elements_by_css_selector(gym_css)
-        break
-    return list
+        previous_list = gym_list[:]
+        gym_list = driver.find_elements_by_css_selector(gym_css)
+        #break
+    return gym_list
 
 #get address and name of gym
 def get_details(gym):
@@ -64,10 +67,17 @@ def get_details(gym):
 
 
 move_second_line()
-position = get_grouplesson_list_position()
+position = get_activity_list_position()
 select_grouplesson(position)
 list_of_gym = get_list_of_gym()
-for gym in list_of_gym:
-    print(get_details(gym))
+
+gym_store = []
+
+#create list od gym objects
+for list_item in list_of_gym:
+    gym = Gym(get_details(list_item))
+    gym_store.append(gym)
+
+save_data(gym_store)
 
 driver.close()
